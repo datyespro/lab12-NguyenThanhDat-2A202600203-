@@ -1,14 +1,18 @@
 #  Delivery Checklist — Day 12 Lab Submission
 
-> **Student Name:** _________________________  
-> **Student ID:** _________________________  
-> **Date:** _________________________
+> **Student Name:** Nguyễn THành Đạt 
+> **Student ID:** 2A202600203
+
+> **Date:** 18/4/2026
 
 ---
+Link 06-lab
+https://day12-lab06-agent-production.up.railway.app
 
 ##  Submission Requirements
 
 Submit a **GitHub repository** containing:
+https://github.com/datyespro/lab12-NguyenThanhDat-2A202600203-.git
 
 ### 1. Mission Answers (40 points)
 

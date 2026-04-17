@@ -1,4 +1,6 @@
 # Day 12 Lab - Mission Answers
+Link 06-lab
+https://day12-lab06-agent-production.up.railway.app
 
 ## Part 1: Localhost vs Production
 
