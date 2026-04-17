@@ -78,6 +78,13 @@ Tìm:
 
 </details>
 
+**Trả lời (5 vấn đề chính):**
+1. **Hardcode secrets:** `OPENAI_API_KEY` và `DATABASE_URL` bị gán cứng trong code, nguy cơ lộ lọt bảo mật cao.
+2. **Không có Config Management:** thiết lập cứng `DEBUG = True`, không dùng biến môi trường (.env).
+3. **Logging sai cách:** Dùng `print()` thay vì logging chuyên dụng, ghi log lộ cả API Key ra console.
+4. **Thiếu Health Check & Graceful Shutdown:** Không có API `/health` để giám sát trạng thái tự động restart, agent sẽ crash đột ngột khi xảy ra lỗi hoặc bị tắt.
+5. **Hardcode Port/Host & Hot Reload:** Chạy cố định ở Host `localhost` và Port `8000`, bật cờ `reload=True` chỉ dành cho quá trình Dev.
+
 ###  Exercise 1.2: Chạy basic version
 
 ```bash
@@ -107,10 +114,10 @@ python app.py
 
 | Feature | Basic | Advanced | Tại sao quan trọng? |
 |---------|-------|----------|---------------------|
-| Config | Hardcode | Env vars | ... |
-| Health check |  |  | ... |
-| Logging | print() | JSON | ... |
-| Shutdown | Đột ngột | Graceful | ... |
+| Config | Hardcode | Env vars | Giúp tái sử dụng code trên nhiều môi trường và ẩn giấu các dữu liệu nhạy cảm (secrets) an toàn khỏi repo. |
+| Health check | Không có | `/health` & `/ready` | Để nền tảng orchestrator (như Docker/Cloud) biết ứng dụng còn hoạt động không, qua đó tự động điều hướng tải hoặc restart khi cần. |
+| Logging | `print()` | JSON logs | Cấu trúc chuẩn dễ dàng tích hợp với các hệ thống phân tích logs (Datadog, Elastic) và cấp chi tiết log theo mức (Info, Error, Debug). |
+| Shutdown | Đột ngột | Graceful | Cho phép các tác vụ đang thực thi dở dang (in-flight requests) hoàn tất để trả về client trước khi server thực sự đóng, chống lỗi dữ liệu. |
 
 ###  Checkpoint 1
 
@@ -148,6 +155,14 @@ cd ../../02-docker/develop
 3. Tại sao COPY requirements.txt trước?
 4. CMD vs ENTRYPOINT khác nhau thế nào?
 
+**Trả lời:**
+1. **Base image:** `python:3.11` (Bản phân phối Python full kích thước khoảng ~1 GB).
+2. **Working directory:** `/app` (Mọi thư mục, tệp được tạo hay copy sau đó sẽ nằm ở đây).
+3. **Tại COPY requirements.txt trước:** Để tận dụng Docker layer cache. Hầu hết các lần bạn build lại Image là do sửa đổi mã nguồn (`app.py`), ít thay đổi các thư viện cài đặt. Việc `COPY requirements.txt` và `RUN pip install` ở trên cùng giúp Docker sử dụng lại (cache) các thư viện đã tải thay vì phải download và setup lại từ đầu, từ đó tiết kiệm **rất nhiều** thời gian Build Image.
+4. **Khác biệt CMD và ENTRYPOINT:**
+   - **CMD** cung cấp tham số mệnh lệnh mặc định khi Container start. Nhưng khi người dùng chạy lệnh `docker run`, lệnh đó có thể đè (override) luôn CMD. Ví dụ: `docker run agent-develop /bin/bash`. 
+   - **ENTRYPOINT** cấu hình container chạy cố định giống hệt một hệ thống thực thi. Lệnh ENTRYPOINT không bị đè và bất kỳ tham số nào từ `docker run` cũng sẽ tự động được gộp/đẩy vào làm tham số (arguments) chạy cho `ENTRYPOINT`. (Tuy nhiên ENTRYPOINT vẫn có thể bị vượt mặt nếu cố tình dùng cờ `--entrypoint`).
+
 ###  Exercise 2.2: Build và run
 
 ```bash
@@ -163,10 +178,14 @@ curl http://localhost:8000/ask -X POST \
   -d '{"question": "What is Docker?"}'
 ```
 
+curl -X POST "http://localhost:8000/ask?question=What+is+Docker"
+
+
 **Quan sát:** Image size là bao nhiêu?
 ```bash
 docker images my-agent:develop
 ```
+Image size là 1.66 GB
 
 ###  Exercise 2.3: Multi-stage build
 
@@ -175,35 +194,64 @@ cd ../production
 ```
 
 **Nhiệm vụ:** Đọc `Dockerfile` và tìm:
-- Stage 1 làm gì?
-- Stage 2 làm gì?
-- Tại sao image nhỏ hơn?
+**Trả lời:**
+- **Stage 1 (AS builder) làm gì?:** Giai đoạn này sử dụng để cài đặt các trình biên dịch hệ thống (ví dụ: `gcc`, `libpq-dev`) và công cụ build nhằm mục đích biên dịch và tải tất cả dependencies packages vào thư mục (`/root/.local`).
+- **Stage 2 (AS runtime) làm gì?:** Giai đoạn cấu hình môi trường chạy ứng dụng thực tế. Nó COPY thư mục thư viện đã cài đặt thành công từ Stage 1 sang, sao chép Source Code, thiết lập người dùng bảo mật (`non-root user`) và cài cắm HealthCheck.
+- **Tại sao image nhỏ hơn?:** Bởi vì cấu trúc Multi-stage chỉ giữ lại một Image từ Stage cuối cùng. Nghĩa là mọi công cụ rác, các lớp Cache cài đặt lệnh `Pip`, và toàn bộ mã nguồn của gói biên dịch (compiler toolchain) của Stage 1 sẽ bị vứt bỏ hoàn toàn. Image thu được ở Stage 2 chỉ còn chứa Python runtime gọn nhẹ. 
 
 Build và so sánh:
 ```bash
 docker build -t my-agent:advanced .
 docker images | grep my-agent
 ```
-
+my-agent     advanced    236MB
+my-agent     develop     1.66GB
 ###  Exercise 2.4: Docker Compose stack
 
 **Nhiệm vụ:** Đọc `docker-compose.yml` và vẽ architecture diagram.
 
+**Trả lời:**
+
+**1. Sơ đồ Cấu trúc (Architecture Diagram):**
+```mermaid
+flowchart TD
+    Client([Client / Users])
+    
+    subgraph DockerComposeStack ["Internal Docker Network (bridge)"]
+      Nginx["Nginx (Exposed Port 80, 443)"]
+      Agent["Agent Server (FastAPI)"]
+      Redis[("Redis (Cache & Rate Limit)")]
+      Qdrant[("Qdrant (Vector DB)")]
+      
+      Nginx -- "Proxy pass & LB" --> Agent
+      Agent -- "Save/Load Context" --> Redis
+      Agent -- "Search Vectors" --> Qdrant
+    end
+
+    Client -- "HTTP Requests" --> Nginx
+```
+
+**2. Các dịch vụ (Services) được khởi động:**
+- Mốc 1 `redis`: Hệ quản trị CSDL in-memory để giới hạn tốc độ (rate-limit) và lưu phiên dùng (session cache).
+- Mốc 2 `qdrant`: Cơ sở dữ liệu Vector để xử lý RAG.
+- Mốc 3 `agent`: Web Server API (bản thân Agent) phụ trách phần logic trung tâm.
+- Mốc 4 `nginx`: Đóng vai trò là Reverse Proxy & Cổng kết nối vào Stack.
+
+**3. Chúng giao tiếp với nhau thế nào?**
+- Toàn bộ 4 service được nhốt kín trong một mạng LAN nội bộ Docker (`networks: internal`).
+- Nghĩa là các vùng không cần bộc lộ cổng mạng (`ports`) ra môi trường Host, thay vào đó chúng giao tiếp bằng tên định danh Service (vd: `ping redis` từ container `agent` là kết nối thành công, `redis` chính là Domain trong không gian này).
+- `nginx` là kẻ duy nhất mở cả cổng `80:80` ra ngoài máy host. Nó làm nhiệm vụ hứng traffic từ người dùng, điều phối (Load balance) và tuồn (proxy) các request HTTP vào cho dàn `agent` xử lý. 
+
 ```bash
+# Trước khi chạy, đảm bảo bạn đang ở nhánh gốc day12_ha-... và dùng lệnh:
 docker compose up
 ```
 
-Services nào được start? Chúng communicate thế nào?
+# Lệnh mới cho Health Check của hệ thống
+curl.exe http://localhost:8080/health
 
-Test:
-```bash
-# Health check
-curl http://localhost/health
-
-# Agent endpoint
-curl http://localhost/ask -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Explain microservices"}'
+# Lệnh mới test Agent trả lời
+curl.exe http://localhost:8080/ask -X POST -H "Content-Type: application/json" -d "{\"question\": \"Explain microservices\"}"
 ```
 
 ###  Checkpoint 2
@@ -341,6 +389,11 @@ cd ../../04-api-gateway/develop
 - API key được check ở đâu?
 - Điều gì xảy ra nếu sai key?
 - Làm sao rotate key?
+
+**Trả lời:**
+- **API key được check ở đâu?** Trong hàm `verify_api_key()`, hàm này được inject qua `Depends()` vào endpoint `@app.post("/ask")`.
+- **Điều gì xảy ra nếu sai key?** Nếu thiếu key sẽ báo lỗi 401 Unauthorized, nếu sai key báo 403 Forbidden.
+- **Làm sao rotate key?** Chỉ cần đổi giá trị biến môi trường `AGENT_API_KEY` bằng key mới và khởi động lại Server (không cần sửa code).
 
 Test:
 ```bash
