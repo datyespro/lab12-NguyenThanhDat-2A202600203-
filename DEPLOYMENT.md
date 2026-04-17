@@ -1,7 +1,7 @@
 # Deployment Information
 
 ## Public URL
-https://test-production-3132.up.railway.app
+https://day12-lab06-agent-production.up.railway.app
 
 ## Platform
 Railway
@@ -10,7 +10,7 @@ Railway
 
 ### Health Check
 ```bash
-curl -s https://test-production-3132.up.railway.app/health
+curl -s https://day12-lab06-agent-production.up.railway.app/health
 ```
 *Expected output:*
 ```json
@@ -29,14 +29,14 @@ curl -s https://test-production-3132.up.railway.app/health
 
 ### Readiness Check
 ```bash
-curl -s https://test-production-3132.up.railway.app/ready
+curl -s https://day12-lab06-agent-production.up.railway.app/ready
 ```
 *Expected output:* `{"ready": true}`
 
 ### API Test (with authentication)
 ```bash
-curl -X POST https://test-production-3132.up.railway.app/ask \
-  -H "X-API-Key: production-secret-key" \
+curl -X POST https://day12-lab06-agent-production.up.railway.app/ask \
+  -H "X-API-Key: dev-key-change-me" \
   -H "Content-Type: application/json" \
   -d '{"question": "What is 12 factor app?"}'
 ```
