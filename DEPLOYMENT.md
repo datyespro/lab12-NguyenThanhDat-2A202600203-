@@ -1,7 +1,7 @@
 # Deployment Information
 
 ## Public URL
-https://production-ai-agent.railway.app
+https://test-production-3132.up.railway.app
 
 ## Platform
 Railway
@@ -10,7 +10,7 @@ Railway
 
 ### Health Check
 ```bash
-curl -s https://production-ai-agent.railway.app/health
+curl -s https://test-production-3132.up.railway.app/health
 ```
 *Expected output:*
 ```json
@@ -29,13 +29,13 @@ curl -s https://production-ai-agent.railway.app/health
 
 ### Readiness Check
 ```bash
-curl -s https://production-ai-agent.railway.app/ready
+curl -s https://test-production-3132.up.railway.app/ready
 ```
 *Expected output:* `{"ready": true}`
 
 ### API Test (with authentication)
 ```bash
-curl -X POST https://production-ai-agent.railway.app/ask \
+curl -X POST https://test-production-3132.up.railway.app/ask \
   -H "X-API-Key: production-secret-key" \
   -H "Content-Type: application/json" \
   -d '{"question": "What is 12 factor app?"}'
@@ -62,6 +62,5 @@ Below are the critical environment variables configured in the cloud dashboard:
 - `OPENAI_API_KEY=sk-...` *(Optional, falls back to Mock LLM if empty)*
 
 ## Screenshots
-- [Deployment dashboard](screenshots/dashboard.png)
-- [Service running](screenshots/running.png)
-- [Test results](screenshots/test.png)
+- [Deployment dashboard](screenshots/image.png)
+- [Service running](screenshots/image-1.png)
